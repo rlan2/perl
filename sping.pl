@@ -83,7 +83,9 @@ sub print_result {
           if !$result;
 
         my $summary = sprintf("%d/%d/%.2f%%", $host->{ok}, $host->{fail}, $host->{fail} / ($host->{ok} + $host->{fail})* 100);
-        printf "%-50s %s (%s)\n", cut_vrf($host->{host}), $res_str, $summary
+        my $h = $host->{host};
+        $h .= ' '.$host->{descr} if defined $host->{descr};
+        printf "%-50s %s (%s)\n", $h, $res_str, $summary
           if ( $only_fail && !$result ) || !$only_fail;
     }
 
@@ -112,13 +114,12 @@ sub ping_host {
 	my $ping = Net::Ping->new( $type, 2 );
 
     while (1) {
-
         my $seq;
 	# Берём следующий номер в списке
         {
-		lock $index;
-		$seq = $index++;
-	}
+			lock $index;
+			$seq = $index++;
+		}
 
         # Если список кончился, заканчиваем
         last if $seq >= @$list;
@@ -154,9 +155,12 @@ sub device_list {
     foreach my $str (<$hfile>) {
         chomp $str;
         next unless $str;
-        next if $str =~ /^#/;
+        next if $str =~ /^\s*#/;
         if ( $str =~ /$filter/i ) {
+        	my $descr = $str =~ s/([!#].*)// ? $1 : undef; 
+        	$str =~ s/\s//g;
             my %data = (host => $str, ok => 0, fail => 0);
+            $data{descr} = $descr if $descr;
             push @list, \%data;
         }
     }
